@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Takee</string>
+    <string name="create_card">Создать карточку</string>
+    <string name="new_pet">Новое животное</string>
+    <string name="manually">Вручную</string>
+    <string name="via_AI">С помощью ИИ</string>
+    <string name="pick_from_gallery">Загрузите\nфото из галереи</string>
+    <string name="wait_wile_analysing">Идет обработка, пожалуйста, подождите</string>
+</resources>
