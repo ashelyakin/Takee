@@ -1,14 +1,14 @@
 package ru.takee.android.models
 
 enum class PetCategory(val id: Int){
+    DOG(0),
     GERMAN_SHEPHERD(1),
     GOLDEN_RETRIEVER(2),
     DACHSHUND(3),
     CAT(4),
-    DOG(5),
-    NONE(6),
-    RABBIT(7),
-    TURTLE(8);
+    NONE(5),
+    RABBIT(6),
+    TURTLE(7);
 
     override fun toString(): String {
         return when(this){

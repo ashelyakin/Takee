@@ -7,7 +7,7 @@ enum class ColorsValue(val text: String, val color: Int) {
     BLACK("Черный", Color.rgb(0, 0, 0)),
     DARK_GRAY("Тёмно-серый", Color.rgb(128, 128, 128)),
     GRAY("Тёмно-серый", Color.rgb(169,169,169)),
-    LIGHT_GRAY("Светло-серый", Color.rgb(211,211,211)),
+    LIGHT_GRAY("Светло-серый", Color.rgb(200,200,200)),
     BROWN_1("Коричневый", Color.rgb(165, 42, 42)),
     BROWN_2("Коричневый", Color.rgb(60, 47, 39)),
     BROWN_3("Коричневый", Color.rgb(92, 64, 51)),

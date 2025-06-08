@@ -8,6 +8,7 @@ import org.tensorflow.lite.gpu.CompatibilityList
 import org.tensorflow.lite.gpu.GpuDelegate
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
+import ru.takee.android.models.PetCategory
 import ru.takee.android.models.PetDetectionClassificationResult
 import ru.takee.android.utils.toPetCategory
 import java.nio.ByteBuffer
@@ -92,6 +93,9 @@ class CVManager(private val context: Context) {
                 res = PetDetectionClassificationResult(boxes.toList(), petCategory)
             }
         }
+
+        if (maxConfidence < 0.1 && res != null)
+            return PetDetectionClassificationResult(res!!.boxes, PetCategory.NONE)
         return res
     }
 

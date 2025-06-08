@@ -52,7 +52,7 @@ fun HomeScreenPreview(){
     HomeScreen(navController, flow{ emit(listOf(PetModel(), PetModel(), PetModel())) }, {})
 }
 
-private const val FILTER_ALL_ID = 0
+private const val FILTER_ALL_ID = -1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
