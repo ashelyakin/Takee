@@ -11,6 +11,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import kotlinx.coroutines.flow.Flow
+import ru.takee.android.MainIntent
+import ru.takee.android.MainState
 import ru.takee.android.MainViewModel
 import ru.takee.android.models.PetModel
 import ru.takee.android.ui.home.HomeScreen
@@ -24,7 +27,7 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun NavHostScreen(viewModel: MainViewModel) {
+fun NavHostScreen(state: MainState, onIntent: (MainIntent) -> Unit, imageEffect: Flow<String?>) {
     val navController = rememberNavController()
 
     NavHost(
@@ -34,8 +37,8 @@ fun NavHostScreen(viewModel: MainViewModel) {
             .padding(top = 44.dp)
     ) {
         composable(Screen.Home.route) {
-            HomeScreen(navController, viewModel.petsFlow){
-                viewModel.pickMultipleFromGallery()
+            HomeScreen(navController, state.pets){
+                onIntent(MainIntent.PickFromGallery(multiple = true))
             }
         }
         composable(
@@ -48,15 +51,15 @@ fun NavHostScreen(viewModel: MainViewModel) {
         ) { backStackEntry ->
             val json = backStackEntry.arguments?.getString("model") ?: ""
             val model = json.fromJson<PetModel>()
-            PetCardScreen(navController, model, viewModel.imageFlow,
+            PetCardScreen(navController, model, imageEffect,
                 pickPhotoCallback = {
-                    viewModel.pickFromGallery()
+                    onIntent(MainIntent.PickFromGallery(multiple = false))
                 },
                 onSavePet = {
-                    viewModel.savePetToDatabase(it)
+                    onIntent(MainIntent.SavePet(it))
                 },
                 onRemovePet = {
-                    viewModel.removePetFromDatabase(it)
+                    onIntent(MainIntent.RemovePet(it))
                 }
             )
         }

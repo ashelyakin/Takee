@@ -32,8 +32,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.flowOf
 import ru.takee.android.R
 import ru.takee.android.models.PetCategory
 import ru.takee.android.models.PetModel
@@ -48,7 +50,7 @@ import ru.takee.android.utils.toPetCategory
 @Composable
 fun PetCardScreenPreview(){
     val navController = rememberNavController()
-    PetCardScreen(navController, PetModel(), MutableSharedFlow(), {}, {}, {})
+    PetCardScreen(navController, PetModel(), flowOf(null), {}, {}, {})
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -56,7 +58,7 @@ fun PetCardScreenPreview(){
 fun PetCardScreen(
     navController: NavHostController,
     model: PetModel?,
-    imagesFlow: SharedFlow<String?>,
+    imagesFlow: Flow<String?>,
     pickPhotoCallback: () -> Unit,
     onSavePet: (PetModel) -> Unit,
     onRemovePet: (PetModel) -> Unit

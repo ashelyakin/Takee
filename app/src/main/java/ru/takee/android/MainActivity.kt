@@ -2,6 +2,7 @@ package ru.takee.android
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -12,7 +13,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,7 +41,7 @@ class MainActivity : ComponentActivity() {
                     try {
                         val singleUri = result.data?.data
                         if (singleUri != null){
-                            viewModel.onImageReady(singleUri)
+                            viewModel.handleIntent(MainIntent.ImagePicked(singleUri))
                         } else{
                             val clipData = result.data?.clipData
                             if (clipData != null){
@@ -49,7 +51,7 @@ class MainActivity : ComponentActivity() {
                                     val bitmap = MediaStore.Images.Media.getBitmap(this@MainActivity.contentResolver, uri)
                                     images.add(bitmap to uri)
                                 }
-                                viewModel.onImagesReady(images)
+                                viewModel.handleIntent(MainIntent.ImagesPicked(images))
                             }
                         }
                     }catch (e: Exception){
@@ -59,9 +61,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    private val viewModel: MainViewModel by viewModels {
-        MainViewModelFactory(application, imageResultLauncher)
-    }
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Takee)
@@ -71,11 +71,27 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             TakeeTheme {
-                NavHostScreen(viewModel)
-                val isAnalysing = viewModel.isAnalysing.collectAsState()
-                if (isAnalysing.value){
+                val state = viewModel.state.collectAsStateWithLifecycle()
+
+                LaunchedEffect(Unit) {
+                    viewModel.mainEffect.collect { eff ->
+                        when (eff) {
+                            is MainEffect.OpenGallery -> {
+                                val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                                if (eff.multiple) intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                                imageResultLauncher.launch(intent)
+                            }
+                        }
+
+                    }
+                }
+
+                NavHostScreen(state.value, viewModel::handleIntent, viewModel.imageEffect)
+
+                if (state.value.isAnalysing) {
                     Loader()
                 }
+
             }
         }
     }

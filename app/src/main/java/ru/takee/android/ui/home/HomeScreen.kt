@@ -49,15 +49,14 @@ import ru.takee.android.utils.toPetCategory
 @Composable
 fun HomeScreenPreview(){
     val navController = rememberNavController()
-    HomeScreen(navController, flow{ emit(listOf(PetModel(), PetModel(), PetModel())) }, {})
+    HomeScreen(navController, listOf(PetModel(), PetModel(), PetModel()), {})
 }
 
 private const val FILTER_ALL_ID = -1
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(navController: NavHostController, petsFlow: Flow<List<PetModel>>, createMultipleCards: () -> Unit) {
-    val pets = petsFlow.collectAsState(initial = null)
+fun HomeScreen(navController: NavHostController, pets: List<PetModel>, createMultipleCards: () -> Unit) {
     val addPetDialogParams = AddPetDialogParams(
         onCreateManuallyClicked = {
             navController.navigate(Screen.PetCard.route)
@@ -176,7 +175,7 @@ fun HomeScreen(navController: NavHostController, petsFlow: Flow<List<PetModel>>,
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
             ){
-                val filteredItems = pets.value?.filter {
+                val filteredItems = pets.filter {
                     selectedFilterId == FILTER_ALL_ID
                             || (it.category.toPetCategory().isDogCategory()
                                 && selectedFilterId == PetCategory.DOG.id

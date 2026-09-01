@@ -1,70 +1,88 @@
 package ru.takee.android
 
 import android.app.Application
-import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
-import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.get
 import ru.takee.android.color.ColorUtils
 import ru.takee.android.cv.CVManager
 import ru.takee.android.cv.ImageProcessor
-import ru.takee.android.models.PetCategory
 import ru.takee.android.db.PetDao
 import ru.takee.android.models.PetModel
 import ru.takee.android.models.toModel
 import ru.takee.android.models.toPetEntity
 import ru.takee.android.utils.FileHelper.getRealPathFromURI
 
-class MainViewModelFactory(
-    private val application: Application,
-    private val imageResultLauncher: ActivityResultLauncher<Intent>
-) : ViewModelProvider.Factory {
-
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return MainViewModel(application, imageResultLauncher) as T
-    }
-}
-
 class MainViewModel(
-    application: Application,
-    private val imageResultLauncher: ActivityResultLauncher<Intent>
-
+    application: Application
 ): AndroidViewModel(application) {
 
-    private val _imageFlow = MutableSharedFlow<String?>()
-    val imageFlow = _imageFlow.asSharedFlow()
-
     private val petDao: PetDao = application.get()
-    val petsFlow = petDao.getAll().map { it.map { it.toModel() }.sortedByDescending { it.timestamp } }
+
+    private val _state = MutableStateFlow(MainState())
+    val state = _state.asStateFlow()
 
     private val cvManager: CVManager = application.get()
 
-    val isAnalysing = MutableStateFlow(false)
+    private val _mainEffect = Channel<MainEffect>(Channel.BUFFERED)
+    val mainEffect = _mainEffect.receiveAsFlow()   // собирает MainActivity
 
-    fun onImageReady(uri: Uri){
-        viewModelScope.launch {
-            _imageFlow.emit(getRealPathFromURI(getApplication<Application>().applicationContext, uri))
+    private val _imageEffect = Channel<String?>(Channel.BUFFERED)
+    val imageEffect = _imageEffect.receiveAsFlow()  // собирает PetCardScreen
+
+    init {
+        petDao.getAll()
+            .map { it.map { p -> p.toModel() }.sortedByDescending { it.timestamp } }
+            .onEach { pets -> emitResult(MainResult.PetsLoaded(pets)) }
+            .launchIn(viewModelScope)
+    }
+
+    fun handleIntent(intent: MainIntent) {
+        when (intent) {
+            is MainIntent.PickFromGallery -> viewModelScope.launch { _mainEffect.send(MainEffect.OpenGallery(intent.multiple)) }
+            is MainIntent.ImagePicked -> handleImagePicked(intent.uri)
+            is MainIntent.ImagesPicked -> handleImagesPicked(intent.images)
+            is MainIntent.SavePet -> savePetToDatabase(intent.pet)
+            is MainIntent.RemovePet -> removePetFromDatabase(intent.pet)
         }
     }
 
-    fun onImagesReady(images: List<Pair<Bitmap, Uri>>){
+    private fun emitResult(result: MainResult) {
+        _state.update { reduce(it, result) }
+    }
+
+    private fun reduce(state: MainState, result: MainResult): MainState = when (result) {
+        is MainResult.PetsLoaded -> state.copy(pets = result.pets)
+        is MainResult.AnalysingStarted -> state.copy(isAnalysing = true)
+        is MainResult.AnalysingFinished -> state.copy(isAnalysing = false)
+    }
+
+    private fun handleImagePicked(uri: Uri){
+        viewModelScope.launch {
+            val path = getRealPathFromURI(getApplication<Application>().applicationContext, uri)
+            _imageEffect.send(path)
+        }
+    }
+
+    private fun handleImagesPicked(images: List<Pair<Bitmap, Uri>>){
         viewModelScope.launch(Dispatchers.IO) {
-            isAnalysing.value = true
+            emitResult(MainResult.AnalysingStarted)
             images.forEach {
                 try {
                     val byteBuffer = ImageProcessor.preprocessImage(it.first, 640, 640, Color(56, 56, 56))
@@ -96,27 +114,17 @@ class MainViewModel(
                     Log.e("MainViewModel", e.stackTraceToString())
                 }
             }
-            isAnalysing.value = false
+            emitResult(MainResult.AnalysingFinished)
         }
     }
 
-    fun pickFromGallery(){
-        imageResultLauncher.launch(Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI))
-    }
-
-    fun pickMultipleFromGallery(){
-        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        imageResultLauncher.launch(intent)
-    }
-
-    fun savePetToDatabase(petModel: PetModel){
+    private fun savePetToDatabase(petModel: PetModel){
         viewModelScope.launch {
             petDao.add(petModel.toPetEntity())
         }
     }
 
-    fun removePetFromDatabase(petModel: PetModel){
+    private fun removePetFromDatabase(petModel: PetModel){
         viewModelScope.launch {
             petDao.delete(petModel.toPetEntity())
         }
